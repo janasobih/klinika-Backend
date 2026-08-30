@@ -43,7 +43,6 @@ exports.createMyDoctorProfile = catchAsync(async (req, res, next) => {
     experienceYears,
     qualifications,
     certificates,
-    image,
   } = req.body;
 
   if (!specialty) {
@@ -52,7 +51,6 @@ exports.createMyDoctorProfile = catchAsync(async (req, res, next) => {
 
   const doctor = await Doctor.create({
     user: user._id,
-    image: image || null,
     phone,
     specialty,
     bio,
@@ -91,7 +89,6 @@ exports.updateMyDoctorProfile = catchAsync(async (req, res, next) => {
   }
 
   const {
-    image,
     phone,
     specialty,
     bio,
@@ -99,10 +96,6 @@ exports.updateMyDoctorProfile = catchAsync(async (req, res, next) => {
     qualifications,
     certificates,
   } = req.body;
-
-  if (image !== undefined) {
-    doctor.image = image;
-  }
 
   if (phone !== undefined) {
     doctor.phone = phone;
@@ -132,13 +125,12 @@ exports.updateMyDoctorProfile = catchAsync(async (req, res, next) => {
 
   const result = await Doctor.findById(doctor._id).populate(
     "user",
-    "name email img role slug",
+    "name email role slug",
   );
 
   res.status(200).json({
     status: "success",
     message: "Doctor profile updated successfully",
-
     data: result,
   });
 });
@@ -182,7 +174,6 @@ exports.getDoctor = catchAsync(async (req, res, next) => {
 
 exports.updateDoctor = catchAsync(async (req, res, next) => {
   const {
-    image,
     phone,
     specialty,
     bio,
@@ -205,10 +196,6 @@ exports.updateDoctor = catchAsync(async (req, res, next) => {
 
   if (!doctor) {
     return next(new AppError("Doctor profile not found", 404));
-  }
-
-  if (image !== undefined) {
-    doctor.image = image;
   }
 
   if (phone !== undefined) {

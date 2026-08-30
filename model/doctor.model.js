@@ -9,11 +9,6 @@ const doctorSchema = new mongoose.Schema(
       unique: true,
     },
 
-    image: {
-      type: String,
-      default: null,
-    },
-
     phone: {
       type: String,
       trim: true,
