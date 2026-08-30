@@ -53,7 +53,14 @@ exports.getRole = catchAsync(async (req, res) => {
   const { name } = req.params;
   const role = await Role.findOne({ name });
 
-  res.status(201).json({
+  if (!role) {
+    return res.status(404).json({
+      status: "fail",
+      message: "Role not found",
+    });
+  }
+
+  res.status(200).json({
     status: "success",
     message: "Role",
     data: role,
