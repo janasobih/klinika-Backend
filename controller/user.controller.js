@@ -1,13 +1,56 @@
 const User = require("../model/user.model");
-const Role = require("../model/role.model");
-const Doctor = require("../model/doctor.model");
-
 const slugify = require("slugify");
 
 const catchAsync = require("../utilite/catchAsync.utilte");
 const AppError = require("../utilite/appError.utilite");
 
 const cloudinary = require("../config/cloudinary.config");
+
+const allowedRoles = ["doctor", "receptionist", "accountant", "nurse"];
+
+/* =========================================================
+   Upload File To Cloudinary
+========================================================= */
+
+const uploadToCloudinary = (file, folder) => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader
+      .upload_stream(
+        {
+          folder,
+          resource_type: "auto",
+        },
+        (error, result) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(result);
+          }
+        },
+      )
+      .end(file.buffer);
+  });
+};
+
+/* =========================================================
+   Parse JSON Field
+========================================================= */
+
+const parseJSON = (value, defaultValue = []) => {
+  if (!value) {
+    return defaultValue;
+  }
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return defaultValue;
+  }
+};
 
 exports.getAllUsers = catchAsync(async (req, res) => {
   const users = await User.find().select("-password").sort({
@@ -30,44 +73,31 @@ exports.getMe = catchAsync(async (req, res, next) => {
     return next(new AppError("User not found", 404));
   }
 
-  const role = await Role.findOne({
-    name: user.role,
-  });
-
-  if (!role) {
-    return next(new AppError("Role not found", 404));
-  }
-
-  const hasDoctorPermission = role.permissions?.includes("doctor.profile");
-
-  let doctor = null;
-
-  if (hasDoctorPermission) {
-    doctor = await Doctor.findOne({
-      user: user._id,
-    });
-  }
-
   res.status(200).json({
     status: "success",
-
-    data: {
-      user: {
-        ...user.toObject(),
-
-        role: {
-          name: role.name,
-          permissions: role.permissions,
-        },
-      },
-
-      doctor,
-    },
+    data: user,
   });
 });
 
 exports.createUser = catchAsync(async (req, res, next) => {
-  const { name, email, password, role } = req.body;
+  const {
+    name,
+    email,
+    password,
+    role,
+    phone,
+    gender,
+    dateOfBirth,
+    specialty,
+    clinicAddress,
+    experienceYears,
+    bio,
+    workingHours,
+  } = req.body;
+
+  /* -------------------------
+     Required fields
+  ------------------------- */
 
   if (!name || !email || !password || !role) {
     return next(
@@ -75,48 +105,119 @@ exports.createUser = catchAsync(async (req, res, next) => {
     );
   }
 
-  const selectedRole = await Role.findOne({
-    name: role,
-  });
+  /* -------------------------
+     Validate Role
+  ------------------------- */
 
-  if (!selectedRole) {
-    return next(new AppError("Role not found", 404));
+  const selectedRole = role.toLowerCase();
+
+  if (!allowedRoles.includes(selectedRole)) {
+    return next(
+      new AppError(
+        "Invalid role. Allowed roles: doctor, receptionist, accountant, nurse",
+        400,
+      ),
+    );
   }
+
+  /* -------------------------
+     Profile Image
+  ------------------------- */
 
   let img = null;
 
-  if (req.file) {
-    const result = await new Promise((resolve, reject) => {
-      cloudinary.uploader
-        .upload_stream(
-          {
-            folder: "klinika/users",
-            resource_type: "image",
-          },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          },
-        )
-        .end(req.file.buffer);
-    });
+  if (req.files?.img?.[0]) {
+    const result = await uploadToCloudinary(req.files.img[0], "klinika/users");
 
     img = result.secure_url;
   }
+
+  /* -------------------------
+     Certificates
+  ------------------------- */
+
+  const certificateTitles = parseJSON(req.body.certificateTitles);
+
+  let certificates = [];
+
+  if (req.files?.certificates) {
+    const uploadedCertificates = await Promise.all(
+      req.files.certificates.map(async (file, index) => {
+        const result = await uploadToCloudinary(
+          file,
+          "klinika/users/certificates",
+        );
+
+        return {
+          title: certificateTitles[index] || file.originalname,
+          image: result.secure_url,
+        };
+      }),
+    );
+
+    certificates = uploadedCertificates;
+  }
+
+  /* -------------------------
+     Awards
+  ------------------------- */
+
+  const awardTitles = parseJSON(req.body.awardTitles);
+
+  let awards = [];
+
+  if (req.files?.awards) {
+    const uploadedAwards = await Promise.all(
+      req.files.awards.map(async (file, index) => {
+        const result = await uploadToCloudinary(file, "klinika/users/awards");
+
+        return {
+          title: awardTitles[index] || file.originalname,
+          image: result.secure_url,
+        };
+      }),
+    );
+
+    awards = uploadedAwards;
+  }
+
+  /* -------------------------
+     Create User
+  ------------------------- */
 
   const user = await User.create({
     name,
     email,
     password,
-    role,
+    role: selectedRole,
+
+    phone,
+    gender,
+    dateOfBirth,
+
+    specialty,
+    clinicAddress,
+    experienceYears,
+    bio,
+
+    certificates,
+    awards,
+
+    workingHours,
+
     img,
 
-    slug: slugify(name),
+    slug: slugify(name, {
+      lower: true,
+      strict: true,
+    }),
   });
 
-  const result = await User.findOne({
-    slug: user.slug,
-  }).select("-password");
+  /* -------------------------
+     Remove Password
+  ------------------------- */
+
+  const result = await User.findById(user._id).select("-password");
 
   res.status(201).json({
     status: "success",
@@ -126,7 +227,19 @@ exports.createUser = catchAsync(async (req, res, next) => {
 });
 
 exports.updateUser = catchAsync(async (req, res, next) => {
-  const { name, email, role } = req.body;
+  const {
+    name,
+    email,
+    role,
+    phone,
+    gender,
+    dateOfBirth,
+    specialty,
+    clinicAddress,
+    experienceYears,
+    bio,
+    workingHours,
+  } = req.body;
 
   const user = await User.findOne({
     slug: req.params.slug,
@@ -144,42 +257,115 @@ exports.updateUser = catchAsync(async (req, res, next) => {
     user.email = email;
   }
 
-  if (role !== undefined) {
-    const selectedRole = await Role.findOne({
-      name: role,
-    });
-
-    if (!selectedRole) {
-      return next(new AppError("Role not found", 404));
-    }
-
-    user.role = role;
+  if (phone !== undefined) {
+    user.phone = phone;
   }
 
-  if (req.file) {
-    const result = await new Promise((resolve, reject) => {
-      cloudinary.uploader
-        .upload_stream(
-          {
-            folder: "klinika/users",
-            resource_type: "image",
-          },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          },
-        )
-        .end(req.file.buffer);
-    });
+  if (gender !== undefined) {
+    user.gender = gender;
+  }
+
+  if (dateOfBirth !== undefined) {
+    user.dateOfBirth = dateOfBirth;
+  }
+
+  if (specialty !== undefined) {
+    user.specialty = specialty;
+  }
+
+  if (clinicAddress !== undefined) {
+    user.clinicAddress = clinicAddress;
+  }
+
+  if (experienceYears !== undefined) {
+    user.experienceYears = experienceYears;
+  }
+
+  if (bio !== undefined) {
+    user.bio = bio;
+  }
+
+  if (workingHours !== undefined) {
+    user.workingHours = workingHours;
+  }
+
+  /* -------------------------
+     Role
+  ------------------------- */
+
+  if (role !== undefined) {
+    const selectedRole = role.toLowerCase();
+
+    if (!allowedRoles.includes(selectedRole)) {
+      return next(
+        new AppError(
+          "Invalid role. Allowed roles: doctor, receptionist, accountant, nurse",
+          400,
+        ),
+      );
+    }
+
+    user.role = selectedRole;
+  }
+
+  /* -------------------------
+     Profile Image
+  ------------------------- */
+
+  if (req.files?.img?.[0]) {
+    const result = await uploadToCloudinary(req.files.img[0], "klinika/users");
 
     user.img = result.secure_url;
   }
 
+  /* -------------------------
+     Certificates
+  ------------------------- */
+
+  if (req.files?.certificates) {
+    const certificateTitles = parseJSON(req.body.certificateTitles);
+
+    const uploadedCertificates = await Promise.all(
+      req.files.certificates.map(async (file, index) => {
+        const result = await uploadToCloudinary(
+          file,
+          "klinika/users/certificates",
+        );
+
+        return {
+          title: certificateTitles[index] || file.originalname,
+          image: result.secure_url,
+        };
+      }),
+    );
+
+    user.certificates = uploadedCertificates;
+  }
+
+  /* -------------------------
+     Awards
+  ------------------------- */
+
+  if (req.files?.awards) {
+    const awardTitles = parseJSON(req.body.awardTitles);
+
+    const uploadedAwards = await Promise.all(
+      req.files.awards.map(async (file, index) => {
+        const result = await uploadToCloudinary(file, "klinika/users/awards");
+
+        return {
+          title: awardTitles[index] || file.originalname,
+          image: result.secure_url,
+        };
+      }),
+    );
+
+    user.awards = uploadedAwards;
+  }
+
   await user.save();
 
-  const updatedUser = await User.findOne({
-    slug: user.slug,
-  }).select("-password");
+  const updatedUser = await User.findById(user._id).select("-password");
 
   res.status(200).json({
     status: "success",
@@ -189,11 +375,22 @@ exports.updateUser = catchAsync(async (req, res, next) => {
 });
 
 exports.updateMe = catchAsync(async (req, res, next) => {
-  const { name, email } = req.body;
+  const {
+    name,
+    email,
+    phone,
+    gender,
+    dateOfBirth,
+    specialty,
+    clinicAddress,
+    experienceYears,
+    bio,
+    workingHours,
+  } = req.body;
 
   const user = await User.findOne({
     slug: req.user.slug,
-  }).select("-password");
+  });
 
   if (!user) {
     return next(new AppError("User not found", 404));
@@ -207,31 +404,84 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     user.email = email;
   }
 
-  // Upload new image
-  if (req.file) {
-    const result = await new Promise((resolve, reject) => {
-      cloudinary.uploader
-        .upload_stream(
-          {
-            folder: "klinika/users",
-            resource_type: "image",
-          },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          },
-        )
-        .end(req.file.buffer);
-    });
+  if (phone !== undefined) {
+    user.phone = phone;
+  }
+
+  if (gender !== undefined) {
+    user.gender = gender;
+  }
+
+  if (dateOfBirth !== undefined) {
+    user.dateOfBirth = dateOfBirth;
+  }
+
+  if (specialty !== undefined) {
+    user.specialty = specialty;
+  }
+
+  if (clinicAddress !== undefined) {
+    user.clinicAddress = clinicAddress;
+  }
+
+  if (experienceYears !== undefined) {
+    user.experienceYears = experienceYears;
+  }
+
+  if (bio !== undefined) {
+    user.bio = bio;
+  }
+
+  if (workingHours !== undefined) {
+    user.workingHours = workingHours;
+  }
+
+  if (req.files?.img?.[0]) {
+    const result = await uploadToCloudinary(req.files.img[0], "klinika/users");
 
     user.img = result.secure_url;
   }
 
+  if (req.files?.certificates) {
+    const certificateTitles = parseJSON(req.body.certificateTitles);
+
+    const uploadedCertificates = await Promise.all(
+      req.files.certificates.map(async (file, index) => {
+        const result = await uploadToCloudinary(
+          file,
+          "klinika/users/certificates",
+        );
+
+        return {
+          title: certificateTitles[index] || file.originalname,
+          image: result.secure_url,
+        };
+      }),
+    );
+
+    user.certificates = uploadedCertificates;
+  }
+
+  if (req.files?.awards) {
+    const awardTitles = parseJSON(req.body.awardTitles);
+
+    const uploadedAwards = await Promise.all(
+      req.files.awards.map(async (file, index) => {
+        const result = await uploadToCloudinary(file, "klinika/users/awards");
+
+        return {
+          title: awardTitles[index] || file.originalname,
+          image: result.secure_url,
+        };
+      }),
+    );
+
+    user.awards = uploadedAwards;
+  }
+
   await user.save();
 
-  const updatedUser = await User.findOne({
-    slug: user.slug,
-  }).select("-password");
+  const updatedUser = await User.findById(user._id).select("-password");
 
   res.status(200).json({
     status: "success",

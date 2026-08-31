@@ -23,14 +23,81 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
+      minlength: 8,
+    },
+
+    phone: {
+      type: String,
+      trim: true,
+    },
+
+    img: {
+      type: String,
+      default: null,
     },
 
     role: {
       type: String,
       required: true,
+      enum: ["admin", "doctor", "receptionist", "accountant", "nurse"],
     },
 
-    img: {
+    gender: {
+      type: String,
+      enum: ["male", "female"],
+    },
+
+    dateOfBirth: {
+      type: Date,
+    },
+
+    specialty: {
+      type: String,
+      trim: true,
+    },
+
+    clinicAddress: {
+      type: String,
+      trim: true,
+    },
+
+    experienceYears: {
+      type: Number,
+      min: 0,
+    },
+
+    bio: {
+      type: String,
+      trim: true,
+    },
+
+    certificates: [
+      {
+        title: {
+          type: String,
+          trim: true,
+        },
+
+        image: {
+          type: String,
+        },
+      },
+    ],
+
+    awards: [
+      {
+        title: {
+          type: String,
+          trim: true,
+        },
+
+        image: {
+          type: String,
+        },
+      },
+    ],
+
+    workingHours: {
       type: String,
     },
   },

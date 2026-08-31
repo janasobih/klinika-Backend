@@ -1,7 +1,32 @@
 const mongoose = require("mongoose");
-// فاتورة
+//الفاتورة
+const invoiceItemSchema = new mongoose.Schema(
+  {
+    service: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+  },
+  { _id: false },
+);
+
 const invoiceSchema = new mongoose.Schema(
   {
+    // رقم الفاتورة
+    invoiceNumber: {
+      type: String,
+      unique: true,
+      required: true,
+    },
+
+    // المريض
     patient: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Patient",
@@ -10,107 +35,83 @@ const invoiceSchema = new mongoose.Schema(
 
     doctor: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Doctor",
+      ref: "User",
+      required: true,
     },
 
-    appointment: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Appointment",
-    },
-
+    // الزيارة المرتبطة بالفاتورة
     visit: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Visit",
     },
 
-    invoiceNumber: {
-      type: String,
+    // تاريخ الفاتورة
+    invoiceDate: {
+      type: Date,
+      default: Date.now,
       required: true,
-      unique: true,
-      trim: true,
     },
 
-    items: [
-      {
-        name: {
-          type: String,
-          required: true,
-          trim: true,
-        },
-
-        quantity: {
-          type: Number,
-          default: 1,
-          min: 1,
-        },
-
-        price: {
-          type: Number,
-          required: true,
-          min: 0,
-        },
-
-        total: {
-          type: Number,
-          required: true,
-          min: 0,
-        },
+    // الخدمات
+    items: {
+      type: [invoiceItemSchema],
+      required: true,
+      validate: {
+        validator: (items) => items.length > 0,
+        message: "Invoice must contain at least one service",
       },
-    ],
-
-    subtotal: {
-      type: Number,
-      required: true,
-      min: 0,
     },
 
+    // الخصم
     discount: {
       type: Number,
       default: 0,
       min: 0,
     },
 
-    tax: {
+    // المبلغ الإجمالي قبل الخصم
+    subtotal: {
       type: Number,
       default: 0,
       min: 0,
     },
 
-    totalAmount: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-
-    paidAmount: {
+    // الإجمالي بعد الخصم
+    total: {
       type: Number,
       default: 0,
       min: 0,
     },
 
-    remainingAmount: {
+    // المبلغ المدفوع
+    paid: {
       type: Number,
       default: 0,
       min: 0,
     },
 
-    paymentStatus: {
-      type: String,
-      enum: ["unpaid", "partially-paid", "paid"],
-      default: "unpaid",
+    // المبلغ المتبقي
+    remaining: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
 
+    // طريقة الدفع
     paymentMethod: {
       type: String,
-      enum: ["cash", "card", "bank-transfer", "insurance", "other"],
+      enum: ["cash", "card", "bank_transfer", "wallet"],
+      default: "cash",
     },
 
+    // حالة الفاتورة
     status: {
       type: String,
-      enum: ["draft", "issued", "cancelled"],
-      default: "issued",
+      enum: ["paid", "pending", "partial", "cancelled"],
+      default: "pending",
     },
 
+    // ملاحظات
     notes: {
       type: String,
       trim: true,
@@ -121,4 +122,6 @@ const invoiceSchema = new mongoose.Schema(
   },
 );
 
-module.exports = mongoose.model("Invoice", invoiceSchema);
+const Invoice = mongoose.model("Invoice", invoiceSchema);
+
+module.exports = Invoice;

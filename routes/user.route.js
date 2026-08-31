@@ -18,7 +18,11 @@ const upload = require("../middleware/uploads.middleware");
 
 router.post(
   "/",
-  upload.single("img"),
+  upload.fields([
+    { name: "img", maxCount: 1 },
+    { name: "certificates", maxCount: 10 },
+    { name: "awards", maxCount: 10 },
+  ]),
   authenticate,
   authorize("admin"),
   createUser,
@@ -28,11 +32,24 @@ router.get("/", authenticate, authorize("admin"), getAllUsers);
 
 router.get("/me", authenticate, getMe);
 
-router.patch("/me", upload.single("img"), authenticate, updateMe);
+router.patch(
+  "/me",
+  upload.fields([
+    { name: "img", maxCount: 1 },
+    { name: "certificates", maxCount: 10 },
+    { name: "awards", maxCount: 10 },
+  ]),
+  authenticate,
+  updateMe,
+);
 
 router.patch(
   "/:slug",
-  upload.single("img"),
+  upload.fields([
+    { name: "img", maxCount: 1 },
+    { name: "certificates", maxCount: 10 },
+    { name: "awards", maxCount: 10 },
+  ]),
   authenticate,
   authorize("admin"),
   updateUser,

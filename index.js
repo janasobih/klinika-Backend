@@ -18,12 +18,12 @@ app.get("/", (req, res) => {
   res.send("Backend is running");
 });
 
-app.use("/api/v1/role", require("./routes/role.route"));
 app.use("/api/v1/user", require("./routes/user.route"));
 app.use("/api/v1/auth", require("./routes/auth.route"));
 app.use("/api/v1/patient", require("./routes/patient.route"));
-app.use("/api/v1/doctor", require("./routes/doctor.route"));
 app.use("/api/v1/appointment", require("./routes/appointment.route"));
+app.use("/api/v1/visit", require("./routes/visit.route"));
+app.use("/api/v1/invoice", require("./routes/invoice.route"));
 
 const errorHandler = require("./middleware/errorHandler.middleware");
 const AppError = require("./utilite/appError.utilite");

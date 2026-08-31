@@ -1,4 +1,5 @@
 const Appointment = require("../model/appointment.model");
+
 const catchAsync = require("../utilite/catchAsync.utilte");
 const AppError = require("../utilite/appError.utilite");
 
@@ -288,77 +289,77 @@ exports.updateAppointment = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.cancelAppointment = catchAsync(async (req, res, next) => {
-  const appointment = await Appointment.findById(req.params.id);
+// exports.cancelAppointment = catchAsync(async (req, res, next) => {
+//   const appointment = await Appointment.findById(req.params.id);
 
-  if (!appointment) {
-    return next(new AppError("Appointment not found", 404));
-  }
+//   if (!appointment) {
+//     return next(new AppError("Appointment not found", 404));
+//   }
 
-  if (appointment.status === "cancelled") {
-    return next(new AppError("Appointment is already cancelled", 400));
-  }
+//   if (appointment.status === "cancelled") {
+//     return next(new AppError("Appointment is already cancelled", 400));
+//   }
 
-  if (appointment.status === "completed") {
-    return next(new AppError("Completed appointment cannot be cancelled", 400));
-  }
+//   if (appointment.status === "completed") {
+//     return next(new AppError("Completed appointment cannot be cancelled", 400));
+//   }
 
-  appointment.status = "cancelled";
+//   appointment.status = "cancelled";
 
-  await appointment.save();
+//   await appointment.save();
 
-  res.status(200).json({
-    status: "success",
-    message: "Appointment cancelled successfully",
-    data: appointment,
-  });
-});
+//   res.status(200).json({
+//     status: "success",
+//     message: "Appointment cancelled successfully",
+//     data: appointment,
+//   });
+// });
 
-exports.completeAppointment = catchAsync(async (req, res, next) => {
-  const appointment = await Appointment.findById(req.params.id);
+// exports.completeAppointment = catchAsync(async (req, res, next) => {
+//   const appointment = await Appointment.findById(req.params.id);
 
-  if (!appointment) {
-    return next(new AppError("Appointment not found", 404));
-  }
+//   if (!appointment) {
+//     return next(new AppError("Appointment not found", 404));
+//   }
 
-  if (appointment.status === "cancelled") {
-    return next(new AppError("Cancelled appointment cannot be completed", 400));
-  }
+//   if (appointment.status === "cancelled") {
+//     return next(new AppError("Cancelled appointment cannot be completed", 400));
+//   }
 
-  appointment.status = "completed";
+//   appointment.status = "completed";
 
-  await appointment.save();
+//   await appointment.save();
 
-  res.status(200).json({
-    status: "success",
-    message: "Appointment completed successfully",
-    data: appointment,
-  });
-});
+//   res.status(200).json({
+//     status: "success",
+//     message: "Appointment completed successfully",
+//     data: appointment,
+//   });
+// });
 
-exports.markNoShow = catchAsync(async (req, res, next) => {
-  const appointment = await Appointment.findById(req.params.id);
+// exports.markNoShow = catchAsync(async (req, res, next) => {
+//   const appointment = await Appointment.findById(req.params.id);
 
-  if (!appointment) {
-    return next(new AppError("Appointment not found", 404));
-  }
+//   if (!appointment) {
+//     return next(new AppError("Appointment not found", 404));
+//   }
 
-  if (appointment.status === "cancelled") {
-    return next(
-      new AppError("Cancelled appointment cannot be marked as no-show", 400),
-    );
-  }
+//   if (appointment.status === "cancelled") {
+//     return next(
+//       new AppError("Cancelled appointment cannot be marked as no-show", 400),
+//     );
+//   }
 
-  appointment.status = "no-show";
+//   appointment.status = "no-show";
 
-  await appointment.save();
+//   await appointment.save();
 
-  res.status(200).json({
-    status: "success",
-    message: "Appointment marked as no-show",
-    data: appointment,
-  });
-});
+//   res.status(200).json({
+//     status: "success",
+//     message: "Appointment marked as no-show",
+//     data: appointment,
+//   });
+// });
 
 exports.deleteAppointment = catchAsync(async (req, res, next) => {
   const appointment = await Appointment.findByIdAndDelete(req.params.id);
