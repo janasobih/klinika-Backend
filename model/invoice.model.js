@@ -118,7 +118,7 @@ const invoiceSchema = new mongoose.Schema(
       type: String,
     },
 
-    TermsِِِAndConditions: {
+    TermsAndConditions: {
       type: String,
     },
   },
