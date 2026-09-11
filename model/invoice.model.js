@@ -1,8 +1,9 @@
 const mongoose = require("mongoose");
-//الفاتورة
-const invoiceItemSchema = new mongoose.Schema(
+
+//    الفاتورة
+const invoiceServiceSchema = new mongoose.Schema(
   {
-    service: {
+    name: {
       type: String,
       required: true,
       trim: true,
@@ -13,20 +14,31 @@ const invoiceItemSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+
+    discount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    total: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
   },
   { _id: false },
 );
 
+// الفاتورة
 const invoiceSchema = new mongoose.Schema(
   {
-    // رقم الفاتورة
     invoiceNumber: {
       type: String,
       unique: true,
       required: true,
     },
 
-    // المريض
     patient: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Patient",
@@ -39,38 +51,32 @@ const invoiceSchema = new mongoose.Schema(
       required: true,
     },
 
-    // الزيارة المرتبطة بالفاتورة
     visit: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Visit",
     },
 
-    // تاريخ الفاتورة
     invoiceDate: {
       type: Date,
       default: Date.now,
       required: true,
     },
 
-    // الخدمات
-    items: {
-      type: [invoiceItemSchema],
+    // الخدمات الموجودة في الفاتورة
+    services: {
+      type: [invoiceServiceSchema],
       required: true,
-      validate: {
-        validator: (items) => items.length > 0,
-        message: "Invoice must contain at least one service",
-      },
     },
 
-    // الخصم
-    discount: {
+    // إجمالي الأسعار قبل الخصم
+    subtotal: {
       type: Number,
       default: 0,
       min: 0,
     },
 
-    // المبلغ الإجمالي قبل الخصم
-    subtotal: {
+    // إجمالي الخصومات
+    discount: {
       type: Number,
       default: 0,
       min: 0,
@@ -97,24 +103,23 @@ const invoiceSchema = new mongoose.Schema(
       min: 0,
     },
 
-    // طريقة الدفع
     paymentMethod: {
       type: String,
-      enum: ["cash", "card", "bank_transfer", "wallet"],
       default: "cash",
     },
 
-    // حالة الفاتورة
     status: {
       type: String,
       enum: ["paid", "pending", "partial", "cancelled"],
       default: "pending",
     },
 
-    // ملاحظات
     notes: {
       type: String,
-      trim: true,
+    },
+
+    TermsِِِAndConditions: {
+      type: String,
     },
   },
   {
@@ -122,6 +127,4 @@ const invoiceSchema = new mongoose.Schema(
   },
 );
 
-const Invoice = mongoose.model("Invoice", invoiceSchema);
-
-module.exports = Invoice;
+module.exports = mongoose.model("Invoice", invoiceSchema);

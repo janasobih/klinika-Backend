@@ -3,94 +3,160 @@ const Invoice = require("../model/invoice.model");
 const catchAsync = require("../utilite/catchAsync.utilte");
 const AppError = require("../utilite/appError.utilite");
 
-// Create Invoice
+// Generate invoice number
+const generateInvoiceNumber = async () => {
+  const lastInvoice = await Invoice.findOne().sort({ createdAt: -1 });
+
+  let invoiceNumber = "INV-2026-0001";
+
+  if (lastInvoice && lastInvoice.invoiceNumber) {
+    const lastNumber = parseInt(lastInvoice.invoiceNumber.split("-").pop(), 10);
+
+    if (!isNaN(lastNumber)) {
+      invoiceNumber = `INV-2026-${String(lastNumber + 1).padStart(4, "0")}`;
+    }
+  }
+
+  return invoiceNumber;
+};
+
+// Calculate services and invoice totals
+const calculateInvoiceTotals = (services, paid) => {
+  let subtotal = 0;
+  let totalDiscount = 0;
+
+  const calculatedServices = services.map((service) => {
+    const price = Number(service.price);
+    const discount = Number(service.discount || 0);
+
+    // Validate price
+    if (isNaN(price) || price < 0) {
+      throw new AppError(`Invalid price for service: ${service.name}`, 400);
+    }
+
+    // Validate discount
+    if (isNaN(discount) || discount < 0) {
+      throw new AppError(`Invalid discount for service: ${service.name}`, 400);
+    }
+
+    // Discount cannot be greater than service price
+    if (discount > price) {
+      throw new AppError(
+        `Discount cannot be greater than price for service: ${service.name}`,
+        400,
+      );
+    }
+
+    // Calculate service total
+    const serviceTotal = price - discount;
+
+    subtotal += price;
+    totalDiscount += discount;
+
+    return {
+      name: service.name,
+      price,
+      discount,
+      total: serviceTotal,
+    };
+  });
+
+  // Invoice total after discounts
+  const total = subtotal - totalDiscount;
+
+  const paidAmount = Number(paid || 0);
+
+  // Validate paid
+  if (isNaN(paidAmount) || paidAmount < 0) {
+    throw new AppError("Invalid paid amount", 400);
+  }
+
+  if (paidAmount > total) {
+    throw new AppError("Paid amount cannot be greater than invoice total", 400);
+  }
+
+  // Remaining amount
+  const remaining = total - paidAmount;
+
+  // Payment status
+  let status = "pending";
+
+  if (paidAmount === total && total > 0) {
+    status = "paid";
+  } else if (paidAmount > 0 && paidAmount < total) {
+    status = "partial";
+  }
+
+  return {
+    services: calculatedServices,
+    subtotal,
+    discount: totalDiscount,
+    total,
+    paid: paidAmount,
+    remaining,
+    status,
+  };
+};
+
 exports.createInvoice = catchAsync(async (req, res, next) => {
   const {
     patient,
     doctor,
     visit,
     invoiceDate,
-    items,
-    discount = 0,
+    services,
     paid = 0,
     paymentMethod = "cash",
     notes,
+    TermsAndConditions,
   } = req.body;
 
-  // Calculate subtotal
-  const subtotal = items.reduce((total, item) => {
-    return total + Number(item.price);
-  }, 0);
-
-  // Calculate total after discount
-  const total = Math.max(subtotal - Number(discount), 0);
-
-  // Validate paid amount
-  if (Number(paid) > total) {
-    return next(
-      new AppError("Paid amount cannot be greater than invoice total", 400),
-    );
+  // Validate services
+  if (!Array.isArray(services) || services.length === 0) {
+    return next(new AppError("At least one service is required", 400));
   }
 
-  // Calculate remaining
-  const remaining = total - Number(paid);
-
-  // Calculate status
-  let status = "pending";
-
-  if (paid === total && total > 0) {
-    status = "paid";
-  } else if (paid > 0 && paid < total) {
-    status = "partial";
+  // Validate each service name
+  for (const service of services) {
+    if (!service.name || typeof service.name !== "string") {
+      return next(new AppError("Each service must have a valid name", 400));
+    }
   }
+
+  // Calculate invoice
+  const calculatedInvoice = calculateInvoiceTotals(services, paid);
 
   // Generate invoice number
-  const lastInvoice = await Invoice.findOne().sort({
-    createdAt: -1,
-  });
+  const invoiceNumber = await generateInvoiceNumber();
 
-  let invoiceNumber = "INV-2026-0001";
-
-  if (lastInvoice) {
-    const lastNumber = parseInt(lastInvoice.invoiceNumber.split("-").pop());
-
-    invoiceNumber = `INV-2026-${String(lastNumber + 1).padStart(4, "0")}`;
-  }
-
+  // Create invoice
   const invoice = await Invoice.create({
     invoiceNumber,
     patient,
     doctor,
     visit,
     invoiceDate,
-    items,
-    discount,
-    subtotal,
-    total,
-    paid,
-    remaining,
+    services: calculatedInvoice.services,
+    subtotal: calculatedInvoice.subtotal,
+    discount: calculatedInvoice.discount,
+    total: calculatedInvoice.total,
+    paid: calculatedInvoice.paid,
+    remaining: calculatedInvoice.remaining,
     paymentMethod,
-    status,
+    status: calculatedInvoice.status,
     notes,
+    TermsAndConditions,
   });
-
-  const populatedInvoice = await Invoice.findById(invoice._id)
-    .populate("patient")
-    .populate("visit");
 
   res.status(201).json({
     status: "success",
     message: "Invoice created successfully",
-    data: populatedInvoice,
+    data: invoice,
   });
 });
 
-// Get All Invoices
 exports.getAllInvoices = catchAsync(async (req, res, next) => {
-  const invoices = await Invoice.find()
-    .populate("patient")
-    .populate("visit")
-    .sort({ invoiceDate: -1 });
+  const invoices = await Invoice.find().sort({ invoiceDate: -1 });
 
   res.status(200).json({
     status: "success",
@@ -99,11 +165,8 @@ exports.getAllInvoices = catchAsync(async (req, res, next) => {
   });
 });
 
-// Get Invoice By ID
 exports.getInvoice = catchAsync(async (req, res, next) => {
-  const invoice = await Invoice.findById(req.params.id)
-    .populate("patient")
-    .populate("visit");
+  const invoice = await Invoice.findById(req.params.id);
 
   if (!invoice) {
     return next(new AppError("Invoice not found", 404));
@@ -115,13 +178,10 @@ exports.getInvoice = catchAsync(async (req, res, next) => {
   });
 });
 
-// Get Invoices By Patient
 exports.getPatientInvoices = catchAsync(async (req, res, next) => {
   const invoices = await Invoice.find({
     patient: req.params.patientId,
-  })
-    .populate("visit")
-    .sort({ invoiceDate: -1 });
+  }).sort({ invoiceDate: -1 });
 
   res.status(200).json({
     status: "success",
@@ -130,12 +190,11 @@ exports.getPatientInvoices = catchAsync(async (req, res, next) => {
   });
 });
 
-// Get Invoices By doctor
 exports.getDoctorInvoices = catchAsync(async (req, res, next) => {
   const invoices = await Invoice.find({
     doctor: req.params.doctorId,
   })
-    .populate("visit")
+
     .sort({ invoiceDate: -1 });
 
   res.status(200).json({
@@ -145,7 +204,6 @@ exports.getDoctorInvoices = catchAsync(async (req, res, next) => {
   });
 });
 
-// Update Invoice
 exports.updateInvoice = catchAsync(async (req, res, next) => {
   const invoice = await Invoice.findById(req.params.id);
 
@@ -154,57 +212,51 @@ exports.updateInvoice = catchAsync(async (req, res, next) => {
   }
 
   const {
-    items = invoice.items,
-    discount = invoice.discount,
+    services = invoice.services,
     paid = invoice.paid,
     paymentMethod = invoice.paymentMethod,
     notes = invoice.notes,
+    TermsAndConditions = invoice.TermsAndConditions,
     invoiceDate = invoice.invoiceDate,
   } = req.body;
 
-  // Recalculate
-  const subtotal = items.reduce((total, item) => {
-    return total + Number(item.price);
-  }, 0);
-
-  const total = Math.max(subtotal - Number(discount), 0);
-
-  if (Number(paid) > total) {
-    return next(
-      new AppError("Paid amount cannot be greater than invoice total", 400),
-    );
+  // Validate services
+  if (!Array.isArray(services) || services.length === 0) {
+    return next(new AppError("At least one service is required", 400));
   }
 
-  const remaining = total - Number(paid);
-
-  let status = "pending";
-
-  if (paid === total && total > 0) {
-    status = "paid";
-  } else if (paid > 0 && paid < total) {
-    status = "partial";
+  // Validate service names
+  for (const service of services) {
+    if (!service.name || typeof service.name !== "string") {
+      return next(new AppError("Each service must have a valid name", 400));
+    }
   }
 
-  invoice.items = items;
-  invoice.discount = discount;
-  invoice.subtotal = subtotal;
-  invoice.total = total;
-  invoice.paid = paid;
-  invoice.remaining = remaining;
+  // Recalculate invoice
+  const calculatedInvoice = calculateInvoiceTotals(services, paid);
+
+  // Update invoice
+  invoice.services = calculatedInvoice.services;
+
+  invoice.subtotal = calculatedInvoice.subtotal;
+  invoice.discount = calculatedInvoice.discount;
+  invoice.total = calculatedInvoice.total;
+
+  invoice.paid = calculatedInvoice.paid;
+  invoice.remaining = calculatedInvoice.remaining;
+
   invoice.paymentMethod = paymentMethod;
   invoice.notes = notes;
+  invoice.TermsAndConditions = TermsAndConditions;
   invoice.invoiceDate = invoiceDate;
-  invoice.status = status;
+
+  invoice.status = calculatedInvoice.status;
 
   await invoice.save();
-
-  const populatedInvoice = await Invoice.findById(invoice._id)
-    .populate("patient")
-    .populate("visit");
 
   res.status(200).json({
     status: "success",
     message: "Invoice updated successfully",
-    data: populatedInvoice,
+    data: invoice,
   });
 });
