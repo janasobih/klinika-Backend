@@ -7,13 +7,7 @@ exports.checkPermission = (permission) => {
     }
 
     const permissions = {
-      doctor: [
-        "patients",
-        "appointments",
-        "visits",
-        "doctor.profile",
-        "invoice",
-      ],
+      doctor: ["patients", "appointments", "visits", "invoice"],
 
       receptionist: ["patients", "appointments"],
 

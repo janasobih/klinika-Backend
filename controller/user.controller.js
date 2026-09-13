@@ -489,3 +489,32 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     data: updatedUser,
   });
 });
+
+exports.getAccount = catchAsync(async (req, res, next) => {
+  const account = await User.findById(req.params.id).select("-password");
+
+  if (!account) {
+    return next(new AppError("Account not found", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: account,
+  });
+});
+
+exports.getAllDoctors = catchAsync(async (req, res, next) => {
+  const doctors = await User.find({
+    role: "doctor",
+  })
+    .select("-password")
+    .sort({
+      createdAt: -1,
+    });
+
+  res.status(200).json({
+    status: "success",
+    results: doctors.length,
+    data: doctors,
+  });
+});

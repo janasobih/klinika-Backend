@@ -24,6 +24,7 @@ app.use("/api/v1/patient", require("./routes/patient.route"));
 app.use("/api/v1/appointment", require("./routes/appointment.route"));
 app.use("/api/v1/visit", require("./routes/visit.route"));
 app.use("/api/v1/invoice", require("./routes/invoice.route"));
+app.use("/api/v1/settings", require("./routes/setting.route"));
 
 const errorHandler = require("./middleware/errorHandler.middleware");
 const AppError = require("./utilite/appError.utilite");

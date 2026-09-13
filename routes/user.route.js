@@ -4,6 +4,8 @@ const router = express.Router();
 const {
   createUser,
   getAllUsers,
+  getAccount,
+  getAllDoctors,
   updateUser,
   getMe,
   updateMe,
@@ -29,6 +31,10 @@ router.post(
 );
 
 router.get("/", authenticate, authorize("admin"), getAllUsers);
+
+router.get("/doctors", authenticate, authorize("admin"), getAllDoctors);
+
+router.get("/:id", authenticate, authorize("admin"), getAccount);
 
 router.get("/me", authenticate, getMe);
 
