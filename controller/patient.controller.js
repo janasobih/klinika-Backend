@@ -37,8 +37,28 @@ exports.createPatient = catchAsync(async (req, res, next) => {
   } = req.body;
 
   // Required fields
-  if (!name || !phone || !gender) {
-    return next(new AppError("Name, phone and gender are required", 400));
+  if (!name || !phone || !gender || !dateOfBirth) {
+    return next(
+      new AppError("Name, phone, gender and date of birth are required", 400),
+    );
+  }
+
+  // ==========================
+  // Calculate Age
+  // ==========================
+
+  const birthDate = new Date(dateOfBirth);
+  const today = new Date();
+
+  let age = today.getFullYear() - birthDate.getFullYear();
+
+  const monthDifference = today.getMonth() - birthDate.getMonth();
+
+  if (
+    monthDifference < 0 ||
+    (monthDifference === 0 && today.getDate() < birthDate.getDate())
+  ) {
+    age--;
   }
 
   // Create slug
@@ -58,10 +78,6 @@ exports.createPatient = catchAsync(async (req, res, next) => {
   const patient = await Patient.create({
     slug,
 
-    // ==========================
-    // Personal Information
-    // ==========================
-
     personalInformation: {
       name,
       phone,
@@ -69,13 +85,10 @@ exports.createPatient = catchAsync(async (req, res, next) => {
       email,
       gender,
       dateOfBirth,
+      age,
       nationalID,
       address,
     },
-
-    // ==========================
-    // Medical Information
-    // ==========================
 
     medicalInformation: {
       bloodType,
@@ -87,19 +100,11 @@ exports.createPatient = catchAsync(async (req, res, next) => {
       medicalHistory,
     },
 
-    // ==========================
-    // Emergency Contact
-    // ==========================
-
     emergencyContact: {
       emergencyname,
       emergencyphone,
       emergencyrelationship,
     },
-
-    // ==========================
-    // Insurance
-    // ==========================
 
     insurance: {
       company,
@@ -108,7 +113,6 @@ exports.createPatient = catchAsync(async (req, res, next) => {
       endDate,
     },
 
-    // Empty attachments
     attachments: [],
   });
 

@@ -41,6 +41,10 @@ const patientSchema = new mongoose.Schema(
         type: Date,
       },
 
+      age: {
+        type: Number,
+      },
+
       nationalID: {
         type: String,
         trim: true,
