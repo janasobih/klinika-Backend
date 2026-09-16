@@ -78,7 +78,11 @@ const userSchema = new mongoose.Schema(
           trim: true,
         },
 
-        image: {
+        desc: {
+          type: String,
+        },
+
+        file: {
           type: String,
         },
       },
@@ -91,7 +95,11 @@ const userSchema = new mongoose.Schema(
           trim: true,
         },
 
-        image: {
+        desc: {
+          type: String,
+        },
+
+        file: {
           type: String,
         },
       },
