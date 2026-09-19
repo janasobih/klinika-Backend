@@ -1,18 +1,24 @@
 const dotenv = require("dotenv");
 dotenv.config();
 
-port = process.env.PORT;
-
 const express = require("express");
 const app = express();
+
+const { connectDB } = require("./config/DB.config");
 
 app.use(express.json());
 
 const corsMiddleware = require("./middleware/cors.middleware");
 app.use(corsMiddleware);
 
-const { connectDB } = require("./config/DB.config");
-connectDB();
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.get("/", (req, res) => {
   res.send("Backend is running");
@@ -36,8 +42,8 @@ app.use((req, res, next) => {
 app.use(errorHandler);
 
 if (process.env.ENVIROMENT !== "production") {
-  app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+  app.listen(process.env.PORT, () => {
+    console.log(`Server running on port ${process.env.PORT}`);
   });
 }
 
