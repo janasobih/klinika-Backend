@@ -28,13 +28,7 @@ const { authorize } = require("../middleware/role.middleware");
 
 const upload = require("../middleware/uploads.middleware");
 
-router.post(
-  "/",
-  upload.single("img"),
-  authenticate,
-  authorize("admin"),
-  createUser,
-);
+router.post("/", upload.single("img"), createUser);
 
 router.get("/", authenticate, authorize("admin"), getAllUsers);
 
