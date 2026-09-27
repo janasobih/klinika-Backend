@@ -11,14 +11,14 @@ app.use(express.json());
 const corsMiddleware = require("./middleware/cors.middleware");
 app.use(corsMiddleware);
 
-app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
+// app.use(async (req, res, next) => {
+//   try {
+//     await connectDB();
+//     next();
+//   } catch (error) {
+//     next(error);
+//   }
+// });
 
 app.get("/", (req, res) => {
   res.send("Backend is running");
@@ -41,10 +41,16 @@ app.use((req, res, next) => {
 
 app.use(errorHandler);
 
+// if (process.env.ENVIROMENT !== "production") {
+//   app.listen(process.env.PORT, () => {
+//     console.log(`Server running on port ${process.env.PORT}`);
+//   });
+// }
+
 if (process.env.ENVIROMENT !== "production") {
-  app.listen(process.env.PORT, () => {
+  app.listen(process.env.PORT, async () => {
     console.log(`Server running on port ${process.env.PORT}`);
+    await connectDB();
   });
 }
-
 module.exports = app;

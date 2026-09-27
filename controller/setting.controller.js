@@ -1,7 +1,7 @@
 const Settings = require("../model/setting.model");
 
 const catchAsync = require("../utilite/catchAsync.utilte");
-const AppError = require("../utilite/appError.utilite");
+const uploadToCloudinary = require("../utilite/uploadToCloudinary.utilite");
 
 exports.getSettings = catchAsync(async (req, res, next) => {
   let settings = await Settings.findOne();
@@ -13,6 +13,7 @@ exports.getSettings = catchAsync(async (req, res, next) => {
       phone: "",
       email: "",
       address: "",
+      logo: "",
 
       workingDays: [
         "saturday",
@@ -47,11 +48,50 @@ exports.getSettings = catchAsync(async (req, res, next) => {
 });
 
 exports.updateSettings = catchAsync(async (req, res, next) => {
+  if (typeof req.body.workingDays === "string") {
+    req.body.workingDays = JSON.parse(req.body.workingDays);
+  }
+
+  if (typeof req.body.paymentMethods === "string") {
+    req.body.paymentMethods = JSON.parse(req.body.paymentMethods);
+  }
+
   let settings = await Settings.findOne();
 
   // Create settings if not found
   if (!settings) {
-    settings = await Settings.create(req.body);
+    settings = await Settings.create({
+      clinicName: req.body.clinicName || "My Clinic",
+      phone: req.body.phone || "",
+      email: req.body.email || "",
+      address: req.body.address || "",
+      logo: "",
+
+      workingDays: req.body.workingDays || [
+        "saturday",
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+      ],
+
+      workingHours: req.body.workingHours,
+      paymentMethods: req.body.paymentMethods || ["cash"],
+      taxRate: req.body.taxRate,
+      appointmentDuration: req.body.appointmentDuration,
+      maxAdvanceBookingDays: req.body.maxAdvanceBookingDays,
+      minAdvanceBookingHours: req.body.minAdvanceBookingHours,
+    });
+
+    // Upload logo
+    if (req.file) {
+      const result = await uploadToCloudinary(req.file);
+
+      settings.logo = result.secure_url;
+
+      await settings.save();
+    }
 
     return res.status(201).json({
       status: "success",
@@ -80,25 +120,19 @@ exports.updateSettings = catchAsync(async (req, res, next) => {
     settings.address = req.body.address;
   }
 
-  // =========================
-  // Working Days
-  // =========================
+  if (req.file) {
+    const result = await uploadToCloudinary(req.file);
+
+    settings.logo = result.secure_url;
+  }
 
   if (req.body.workingDays !== undefined) {
     settings.workingDays = req.body.workingDays;
   }
 
-  // =========================
-  // Working Hours
-  // =========================
-
   if (req.body.workingHours !== undefined) {
     settings.workingHours = req.body.workingHours;
   }
-
-  // =========================
-  // Payment
-  // =========================
 
   if (req.body.paymentMethods !== undefined) {
     settings.paymentMethods = req.body.paymentMethods;
@@ -107,10 +141,6 @@ exports.updateSettings = catchAsync(async (req, res, next) => {
   if (req.body.taxRate !== undefined) {
     settings.taxRate = req.body.taxRate;
   }
-
-  // =========================
-  // Appointments
-  // =========================
 
   if (req.body.appointmentDuration !== undefined) {
     settings.appointmentDuration = req.body.appointmentDuration;

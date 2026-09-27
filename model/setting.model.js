@@ -28,6 +28,10 @@ const settingsSchema = new mongoose.Schema(
       trim: true,
     },
 
+    logo: {
+      type: String,
+    },
+
     // =========================
     // Working Hours
     // =========================
@@ -81,20 +85,17 @@ const settingsSchema = new mongoose.Schema(
 
     appointmentDuration: {
       type: Number,
-      min: 5,
-      default: 30,
+      min: 0,
     },
 
     maxAdvanceBookingDays: {
       type: Number,
       min: 0,
-      default: 30,
     },
 
     minAdvanceBookingHours: {
       type: Number,
       min: 0,
-      default: 2,
     },
   },
   {
