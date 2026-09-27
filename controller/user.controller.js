@@ -175,10 +175,7 @@ exports.updateUser = catchAsync(async (req, res, next) => {
     user.workingHours = workingHours;
   }
 
-  /* -------------------------
-     Role
-  ------------------------- */
-
+  // Update role
   if (role !== undefined) {
     const selectedRole = role.toLowerCase();
 
@@ -194,59 +191,11 @@ exports.updateUser = catchAsync(async (req, res, next) => {
     user.role = selectedRole;
   }
 
-  /* -------------------------
-     Profile Image
-  ------------------------- */
-
-  if (req.files?.img?.[0]) {
-    const result = await uploadToCloudinary(req.files.img[0], "klinika/users");
+  // Update profile image only
+  if (req.file) {
+    const result = await uploadToCloudinary(req.file, "klinika/users");
 
     user.img = result.secure_url;
-  }
-
-  /* -------------------------
-     Certificates
-  ------------------------- */
-
-  if (req.files?.certificates) {
-    const certificateTitles = parseJSON(req.body.certificateTitles);
-
-    const uploadedCertificates = await Promise.all(
-      req.files.certificates.map(async (file, index) => {
-        const result = await uploadToCloudinary(
-          file,
-          "klinika/users/certificates",
-        );
-
-        return {
-          title: certificateTitles[index] || file.originalname,
-          image: result.secure_url,
-        };
-      }),
-    );
-
-    user.certificates = uploadedCertificates;
-  }
-
-  /* -------------------------
-     Awards
-  ------------------------- */
-
-  if (req.files?.awards) {
-    const awardTitles = parseJSON(req.body.awardTitles);
-
-    const uploadedAwards = await Promise.all(
-      req.files.awards.map(async (file, index) => {
-        const result = await uploadToCloudinary(file, "klinika/users/awards");
-
-        return {
-          title: awardTitles[index] || file.originalname,
-          image: result.secure_url,
-        };
-      }),
-    );
-
-    user.awards = uploadedAwards;
   }
 
   await user.save();
@@ -282,6 +231,7 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     return next(new AppError("User not found", 404));
   }
 
+  // Update data
   if (name !== undefined) {
     user.name = name;
   }
@@ -322,47 +272,11 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     user.workingHours = workingHours;
   }
 
-  if (req.files?.img?.[0]) {
-    const result = await uploadToCloudinary(req.files.img[0], "klinika/users");
+  // Update profile image
+  if (req.file) {
+    const result = await uploadToCloudinary(req.file);
 
     user.img = result.secure_url;
-  }
-
-  if (req.files?.certificates) {
-    const certificateTitles = parseJSON(req.body.certificateTitles);
-
-    const uploadedCertificates = await Promise.all(
-      req.files.certificates.map(async (file, index) => {
-        const result = await uploadToCloudinary(
-          file,
-          "klinika/users/certificates",
-        );
-
-        return {
-          title: certificateTitles[index] || file.originalname,
-          image: result.secure_url,
-        };
-      }),
-    );
-
-    user.certificates = uploadedCertificates;
-  }
-
-  if (req.files?.awards) {
-    const awardTitles = parseJSON(req.body.awardTitles);
-
-    const uploadedAwards = await Promise.all(
-      req.files.awards.map(async (file, index) => {
-        const result = await uploadToCloudinary(file, "klinika/users/awards");
-
-        return {
-          title: awardTitles[index] || file.originalname,
-          image: result.secure_url,
-        };
-      }),
-    );
-
-    user.awards = uploadedAwards;
   }
 
   await user.save();
