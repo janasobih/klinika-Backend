@@ -1,20 +1,137 @@
 const Appointment = require("../model/appointment.model");
+const Patient = require("../model/patient.model");
 
 const catchAsync = require("../utilite/catchAsync.utilte");
 const AppError = require("../utilite/appError.utilite");
 
 exports.createAppointment = catchAsync(async (req, res, next) => {
-  const { patient, doctor, date, startTime, type } = req.body;
+  const {
+    patientType,
+    patient,
+    newPatient,
+    doctor,
+    date,
+    startTime,
+    type,
+    duration,
+    notes,
+  } = req.body;
 
-  if (!patient || !doctor || !date || !startTime) {
+  if (!patientType || !doctor || !date || !startTime) {
     return next(
-      new AppError("Patient, doctor, date and start time are required", 400),
+      new AppError(
+        "Patient type, doctor, date and start time are required",
+        400,
+      ),
     );
   }
 
+  if (patientType === "existing") {
+    if (!patient) {
+      return next(new AppError("Please select an existing patient", 400));
+    }
+  }
+
+  if (patientType === "new") {
+    if (!newPatient) {
+      return next(new AppError("Please provide new patient information", 400));
+    }
+
+    if (
+      !newPatient.name ||
+      !newPatient.phone ||
+      !newPatient.gender ||
+      !newPatient.dateOfBirth
+    ) {
+      return next(
+        new AppError(
+          "Name, phone, gender and date of birth are required for new patient",
+          400,
+        ),
+      );
+    }
+  }
+
+  if (!["new", "existing"].includes(patientType)) {
+    return next(new AppError("Patient type must be new or existing", 400));
+  }
+
+  // Create New Patient
+
+  let patientId = patient;
+
+  if (patientType === "new") {
+    const { name, phone, email, gender, dateOfBirth, nationalID } = newPatient;
+
+    // ==========================
+    // Calculate Age
+    // ==========================
+
+    const birthDate = new Date(dateOfBirth);
+
+    if (Number.isNaN(birthDate.getTime())) {
+      return next(new AppError("Invalid date of birth", 400));
+    }
+
+    const today = new Date();
+
+    let age = today.getFullYear() - birthDate.getFullYear();
+
+    const monthDifference = today.getMonth() - birthDate.getMonth();
+
+    if (
+      monthDifference < 0 ||
+      (monthDifference === 0 && today.getDate() < birthDate.getDate())
+    ) {
+      age--;
+    }
+
+    // Check existing patient
+    const existingPatient = await Patient.findOne({
+      phone,
+    });
+
+    if (existingPatient) {
+      return next(
+        new AppError("A patient with this Phone number already exists", 400),
+      );
+    }
+
+    // Create Patient
+
+    const newCreatedPatient = await Patient.create({
+      personalInformation: {
+        name,
+        phone,
+        email,
+        gender,
+        dateOfBirth,
+        age,
+        nationalID,
+      },
+    });
+
+    patientId = newCreatedPatient._id;
+  }
+
+  // Validate Date
+
   const appointmentDateTime = new Date(date);
 
+  if (Number.isNaN(appointmentDateTime.getTime())) {
+    return next(new AppError("Invalid appointment date", 400));
+  }
+
   const [hours, minutes] = startTime.split(":");
+
+  if (
+    hours === undefined ||
+    minutes === undefined ||
+    Number.isNaN(Number(hours)) ||
+    Number.isNaN(Number(minutes))
+  ) {
+    return next(new AppError("Invalid start time", 400));
+  }
 
   appointmentDateTime.setHours(Number(hours), Number(minutes), 0, 0);
 
@@ -24,14 +141,35 @@ exports.createAppointment = catchAsync(async (req, res, next) => {
     );
   }
 
+  // ==========================
+  // Start / End of Day
+  // ==========================
+
+  const appointmentDay = new Date(date);
+
+  appointmentDay.setHours(0, 0, 0, 0);
+
+  const nextDay = new Date(appointmentDay);
+
+  nextDay.setDate(nextDay.getDate() + 1);
+
+  // ==========================
+  // Doctor Conflict
+  // ==========================
+
   const doctorAppointment = await Appointment.findOne({
     doctor,
+
     date: {
-      $gte: new Date(new Date(date).setHours(0, 0, 0, 0)),
-      $lt: new Date(new Date(date).setHours(23, 59, 59, 999)),
+      $gte: appointmentDay,
+      $lt: nextDay,
     },
+
     startTime,
-    status: { $ne: "cancelled" },
+
+    status: {
+      $ne: "cancelled",
+    },
   });
 
   if (doctorAppointment) {
@@ -40,14 +178,23 @@ exports.createAppointment = catchAsync(async (req, res, next) => {
     );
   }
 
+  // ==========================
+  // Patient Conflict
+  // ==========================
+
   const patientAppointment = await Appointment.findOne({
-    patient,
+    patient: patientId,
+
     date: {
-      $gte: new Date(new Date(date).setHours(0, 0, 0, 0)),
-      $lt: new Date(new Date(date).setHours(23, 59, 59, 999)),
+      $gte: appointmentDay,
+      $lt: nextDay,
     },
+
     startTime,
-    status: { $ne: "cancelled" },
+
+    status: {
+      $ne: "cancelled",
+    },
   });
 
   if (patientAppointment) {
@@ -56,12 +203,19 @@ exports.createAppointment = catchAsync(async (req, res, next) => {
     );
   }
 
+  // ==========================
+  // Create Appointment
+  // ==========================
+
   const appointment = await Appointment.create({
-    patient,
+    patientType,
+    patient: patientId,
     doctor,
-    date,
+    date: appointmentDay,
     startTime,
     type,
+    duration,
+    notes,
   });
 
   await appointment.populate([

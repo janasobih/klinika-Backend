@@ -1,5 +1,4 @@
 const Patient = require("../model/patient.model");
-const slugify = require("slugify");
 
 const catchAsync = require("../utilite/catchAsync.utilte");
 const AppError = require("../utilite/appError.utilite");
@@ -61,12 +60,6 @@ exports.createPatient = catchAsync(async (req, res, next) => {
     age--;
   }
 
-  // Create slug
-  const slug = slugify(name, {
-    lower: true,
-    strict: true,
-  });
-
   // Check if patient already exists
   const existingPatient = await Patient.findOne({ slug });
 
@@ -76,8 +69,6 @@ exports.createPatient = catchAsync(async (req, res, next) => {
 
   // Create patient
   const patient = await Patient.create({
-    slug,
-
     personalInformation: {
       name,
       phone,

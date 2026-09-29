@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 // المواعيد
 const appointmentSchema = new mongoose.Schema(
   {
+    patientType: {
+      type: String,
+      enum: ["new", "existing"],
+      required: true,
+    },
+
     patient: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Patient",
@@ -24,9 +30,15 @@ const appointmentSchema = new mongoose.Schema(
       required: true,
     },
 
+    duration: {
+      type: Number,
+      default: 30,
+      min: 5,
+    },
+
     status: {
       type: String,
-      enum: ["pending", "completed", "cancelled", "no-show"],
+      enum: ["pending", "confirmed", "completed", "cancelled", "no-show"],
       default: "pending",
     },
 
@@ -34,6 +46,11 @@ const appointmentSchema = new mongoose.Schema(
       type: String,
       enum: ["consultation", "follow-up", "check-up", "emergency", "other"],
       default: "consultation",
+    },
+
+    notes: {
+      type: String,
+      trim: true,
     },
   },
   {
