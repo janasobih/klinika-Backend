@@ -1,6 +1,8 @@
 const Settings = require("../model/setting.model");
 
 const catchAsync = require("../utilite/catchAsync.utilte");
+
+const cloudinary = require("../config/cloudinary.config");
 const uploadToCloudinary = require("../utilite/uploadToCloudinary.utilite");
 
 exports.getSettings = catchAsync(async (req, res, next) => {
@@ -65,7 +67,7 @@ exports.updateSettings = catchAsync(async (req, res, next) => {
       phone: req.body.phone || "",
       email: req.body.email || "",
       address: req.body.address || "",
-      logo: "",
+      logo: null,
 
       workingDays: req.body.workingDays || [
         "saturday",
@@ -84,11 +86,13 @@ exports.updateSettings = catchAsync(async (req, res, next) => {
       minAdvanceBookingHours: req.body.minAdvanceBookingHours,
     });
 
-    // Upload logo
     if (req.file) {
-      const result = await uploadToCloudinary(req.file);
+      const result = await uploadToCloudinary(req.file, "klinika/logo");
 
-      settings.logo = result.secure_url;
+      settings.logo = {
+        url: result.secure_url,
+        public_id: result.public_id,
+      };
 
       await settings.save();
     }
@@ -120,10 +124,29 @@ exports.updateSettings = catchAsync(async (req, res, next) => {
     settings.address = req.body.address;
   }
 
-  if (req.file) {
-    const result = await uploadToCloudinary(req.file);
+  // Delete logo
+  if (req.body.removeLogo === "true") {
+    if (settings.logo?.public_id) {
+      await cloudinary.uploader.destroy(settings.logo.public_id);
+    }
 
-    settings.logo = result.secure_url;
+    settings.logo = null;
+  }
+
+  // Replace logo
+  else if (req.file) {
+    // Delete old logo
+    if (settings.logo?.public_id) {
+      await cloudinary.uploader.destroy(settings.logo.public_id);
+    }
+
+    // Upload new logo
+    const result = await uploadToCloudinary(req.file, "klinika/logo");
+
+    settings.logo = {
+      url: result.secure_url,
+      public_id: result.public_id,
+    };
   }
 
   if (req.body.workingDays !== undefined) {

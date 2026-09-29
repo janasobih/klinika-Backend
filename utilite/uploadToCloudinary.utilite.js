@@ -1,11 +1,11 @@
 const cloudinary = require("../config/cloudinary.config");
 
-const uploadToCloudinary = (file) => {
+const uploadToCloudinary = (file, folder) => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         resource_type: "auto",
-        folder: "klinika/patients",
+        folder,
       },
       (error, result) => {
         if (error) {

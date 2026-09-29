@@ -29,7 +29,8 @@ const settingsSchema = new mongoose.Schema(
     },
 
     logo: {
-      type: String,
+      url: String,
+      public_id: String,
     },
 
     // =========================

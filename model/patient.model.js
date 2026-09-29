@@ -2,10 +2,6 @@ const mongoose = require("mongoose");
 
 const patientSchema = new mongoose.Schema(
   {
-    slug: {
-      type: String,
-      unique: true,
-    },
     //   personal information
     personalInformation: {
       name: {
@@ -147,8 +143,8 @@ const patientSchema = new mongoose.Schema(
     attachments: [
       {
         file: {
-          type: String,
-          required: true,
+          url: String,
+          public_id: String,
         },
 
         fileName: {

@@ -127,9 +127,8 @@ exports.updateUser = catchAsync(async (req, res, next) => {
     workingHours,
   } = req.body;
 
-  const user = await User.findOne({
-    slug: req.params.slug,
-  });
+  // Admin updates another user's account
+  const user = await User.findById(req.params.id);
 
   if (!user) {
     return next(new AppError("User not found", 404));
@@ -191,11 +190,24 @@ exports.updateUser = catchAsync(async (req, res, next) => {
     user.role = selectedRole;
   }
 
-  // Update profile image only
-  if (req.file) {
+  // Update profile image
+  if (req.body.removeImage === "true") {
+    if (user.img?.public_id) {
+      await cloudinary.uploader.destroy(user.img.public_id);
+    }
+
+    user.img = null;
+  } else if (req.file) {
+    if (user.img?.public_id) {
+      await cloudinary.uploader.destroy(user.img.public_id);
+    }
+
     const result = await uploadToCloudinary(req.file, "klinika/users");
 
-    user.img = result.secure_url;
+    user.img = {
+      url: result.secure_url,
+      public_id: result.public_id,
+    };
   }
 
   await user.save();
@@ -223,9 +235,7 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     workingHours,
   } = req.body;
 
-  const user = await User.findOne({
-    slug: req.user.slug,
-  });
+  const user = await User.findById(req.user.id);
 
   if (!user) {
     return next(new AppError("User not found", 404));
@@ -273,10 +283,24 @@ exports.updateMe = catchAsync(async (req, res, next) => {
   }
 
   // Update profile image
-  if (req.file) {
-    const result = await uploadToCloudinary(req.file);
 
-    user.img = result.secure_url;
+  if (req.body.removeImage === "true") {
+    if (user.img?.public_id) {
+      await cloudinary.uploader.destroy(user.img.public_id);
+    }
+
+    user.img = null;
+  } else if (req.file) {
+    if (user.img?.public_id) {
+      await cloudinary.uploader.destroy(user.img.public_id);
+    }
+
+    const result = await uploadToCloudinary(req.file, "klinika/users");
+
+    user.img = {
+      url: result.secure_url,
+      public_id: result.public_id,
+    };
   }
 
   await user.save();
@@ -321,28 +345,32 @@ exports.getAllDoctors = catchAsync(async (req, res, next) => {
 
 //////Certificate///////
 exports.addCertificate = catchAsync(async (req, res, next) => {
-  const { slug } = req.params;
   const { title, desc } = req.body;
 
-  if (!req.file) {
-    return next(new AppError("Certificate file is required", 400));
-  }
-
-  const user = await User.findOne({ slug });
+  const user = await User.findById(req.user.id);
 
   if (!user) {
     return next(new AppError("User not found", 404));
   }
 
-  const result = await uploadToCloudinary(
-    req.file,
-    "klinika/users/certificates",
-  );
+  let file;
+  let publicId;
+
+  if (req.file) {
+    const result = await uploadToCloudinary(
+      req.file,
+      "klinika/users/certificates",
+    );
+
+    file = result.secure_url;
+    publicId = result.public_id;
+  }
 
   user.certificates.push({
-    title: title,
-    desc: desc,
-    file: result.secure_url,
+    title,
+    desc,
+    file,
+    publicId,
   });
 
   await user.save();
@@ -355,39 +383,33 @@ exports.addCertificate = catchAsync(async (req, res, next) => {
 });
 
 exports.getUserCertificate = catchAsync(async (req, res, next) => {
-  const { slug } = req.params;
-
-  const user = await User.findOne({
-    slug,
-  }).select("certificates");
+  const user = await User.findById(req.user.id).select("certificates");
 
   if (!user) {
-    return next(new AppError("user not found", 404));
+    return next(new AppError("User not found", 404));
   }
 
   res.status(200).json({
     status: "success",
     data: {
-      Certificate: user.certificates,
+      certificates: user.certificates,
     },
   });
 });
 
 exports.getCertificate = catchAsync(async (req, res, next) => {
-  const { slug, id } = req.params;
+  const { id } = req.params;
 
-  const user = await User.findOne({
-    slug,
-  });
+  const user = await User.findById(req.user.id);
 
   if (!user) {
-    return next(new AppError("user not found", 404));
+    return next(new AppError("User not found", 404));
   }
 
   const certificate = user.certificates.id(id);
 
   if (!certificate) {
-    return next(new AppError("certificate not found", 404));
+    return next(new AppError("Certificate not found", 404));
   }
 
   res.status(200).json({
@@ -399,26 +421,19 @@ exports.getCertificate = catchAsync(async (req, res, next) => {
 });
 
 exports.updateCertificate = catchAsync(async (req, res, next) => {
-  const { slug, id } = req.params;
+  const { id } = req.params;
+  const { title, desc } = req.body;
 
-  const { file, title, desc } = req.body;
-
-  const user = await User.findOne({
-    slug,
-  });
+  const user = await User.findById(req.user.id);
 
   if (!user) {
-    return next(new AppError("user not found", 404));
+    return next(new AppError("User not found", 404));
   }
 
   const certificate = user.certificates.id(id);
 
   if (!certificate) {
     return next(new AppError("Certificate not found", 404));
-  }
-
-  if (file !== undefined) {
-    certificate.file = file;
   }
 
   if (title !== undefined) {
@@ -429,10 +444,35 @@ exports.updateCertificate = catchAsync(async (req, res, next) => {
     certificate.desc = desc;
   }
 
+  if (req.body.removeFile === "true") {
+    // Delete existing file from Cloudinary
+    if (certificate.publicId) {
+      await cloudinary.uploader.destroy(certificate.publicId);
+    }
+
+    certificate.file = null;
+    certificate.publicId = null;
+  } else if (req.file) {
+    // Delete old file from Cloudinary
+    if (certificate.publicId) {
+      await cloudinary.uploader.destroy(certificate.publicId);
+    }
+
+    // Upload new file
+    const result = await uploadToCloudinary(
+      req.file,
+      "klinika/users/certificates",
+    );
+
+    certificate.file = result.secure_url;
+    certificate.publicId = result.public_id;
+  }
+
   await user.save();
 
   res.status(200).json({
     status: "success",
+    message: "Certificate updated successfully",
     data: {
       certificate,
     },
@@ -440,9 +480,9 @@ exports.updateCertificate = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteCertificate = catchAsync(async (req, res, next) => {
-  const { slug, id } = req.params;
+  const { id } = req.params;
 
-  const user = await User.findOne({ slug });
+  const user = await User.findById(req.user.id);
 
   if (!user) {
     return next(new AppError("User not found", 404));
@@ -490,45 +530,44 @@ exports.deleteCertificate = catchAsync(async (req, res, next) => {
 
 //////Awards///////
 exports.addAwards = catchAsync(async (req, res, next) => {
-  const { slug } = req.params;
   const { title, desc } = req.body;
 
-  if (!req.file) {
-    return next(new AppError("Awards file is required", 400));
-  }
-
-  const user = await User.findOne({ slug });
+  const user = await User.findById(req.user.id);
 
   if (!user) {
     return next(new AppError("User not found", 404));
   }
 
-  const result = await uploadToCloudinary(req.file, "klinika/users/Awards");
+  let file;
+  let publicId;
+
+  if (req.file) {
+    const result = await uploadToCloudinary(req.file, "klinika/users/awards");
+    file = result.secure_url;
+    publicId = result.public_id;
+  }
 
   user.awards.push({
-    title: title,
-    desc: desc,
-    file: result.secure_url,
+    title,
+    desc,
+    file,
+    publicId,
   });
 
   await user.save();
 
   res.status(201).json({
     status: "success",
-    message: "Awards uploaded successfully",
+    message: "Award added successfully",
     data: user.awards[user.awards.length - 1],
   });
 });
 
 exports.getUserAwards = catchAsync(async (req, res, next) => {
-  const { slug } = req.params;
-
-  const user = await User.findOne({
-    slug,
-  }).select("awards");
+  const user = await User.findById(req.user.id).select("awards");
 
   if (!user) {
-    return next(new AppError("user not found", 404));
+    return next(new AppError("User not found", 404));
   }
 
   res.status(200).json({
@@ -540,90 +579,104 @@ exports.getUserAwards = catchAsync(async (req, res, next) => {
 });
 
 exports.getAwards = catchAsync(async (req, res, next) => {
-  const { slug, id } = req.params;
+  const { id } = req.params;
 
-  const user = await User.findOne({
-    slug,
-  });
+  const user = await User.findById(req.user.id);
 
   if (!user) {
-    return next(new AppError("user not found", 404));
+    return next(new AppError("User not found", 404));
   }
 
-  const awards = user.awards.id(id);
+  const award = user.awards.id(id);
 
-  if (!awards) {
-    return next(new AppError("awards not found", 404));
+  if (!award) {
+    return next(new AppError("Award not found", 404));
   }
 
   res.status(200).json({
     status: "success",
     data: {
-      awards,
+      award,
     },
   });
 });
 
 exports.updateAwards = catchAsync(async (req, res, next) => {
-  const { slug, id } = req.params;
+  const { id } = req.params;
+  const { title, desc } = req.body;
 
-  const { file, title, desc } = req.body;
-
-  const user = await User.findOne({
-    slug,
-  });
+  const user = await User.findById(req.user.id);
 
   if (!user) {
-    return next(new AppError("user not found", 404));
+    return next(new AppError("User not found", 404));
   }
 
-  const awards = user.awards.id(id);
+  const award = user.awards.id(id);
 
-  if (!awards) {
-    return next(new AppError("awards not found", 404));
-  }
-
-  if (file !== undefined) {
-    awards.file = file;
+  if (!award) {
+    return next(new AppError("Award not found", 404));
   }
 
   if (title !== undefined) {
-    awards.title = title;
+    award.title = title;
   }
 
   if (desc !== undefined) {
-    awards.desc = desc;
+    award.desc = desc;
+  }
+
+  // Update award file only if a new file was uploaded
+  if (req.body.removeFile === "true") {
+    // Delete existing file from Cloudinary
+    if (award.publicId) {
+      await cloudinary.uploader.destroy(award.publicId);
+    }
+
+    award.file = null;
+    award.publicId = null;
+  } else if (req.file) {
+    // Delete old file from Cloudinary
+    if (award.publicId) {
+      await cloudinary.uploader.destroy(award.publicId);
+    }
+
+    // Upload new file
+    const result = await uploadToCloudinary(req.file, "klinika/users/awards");
+
+    award.file = result.secure_url;
+    award.publicId = result.public_id;
   }
 
   await user.save();
 
   res.status(200).json({
     status: "success",
+    message: "Award updated successfully",
     data: {
-      awards,
+      award,
     },
   });
 });
 
 exports.deleteAwards = catchAsync(async (req, res, next) => {
-  const { slug, id } = req.params;
+  const { id } = req.params;
 
-  const user = await User.findOne({ slug });
+  const user = await User.findById(req.user.id);
 
   if (!user) {
     return next(new AppError("User not found", 404));
   }
 
-  const awards = user.awards.id(id);
+  const award = user.awards.id(id);
 
-  if (!awards) {
-    return next(new AppError("awards not found", 404));
+  if (!award) {
+    return next(new AppError("Award not found", 404));
   }
 
   // Delete from Cloudinary
   try {
-    if (awards.publicId) {
-      await cloudinary.uploader.destroy(awards.publicId);
+    if (award.publicId) {
+      await cloudinary.uploader.destroy(award.publicId);
     }
   } catch (error) {
     console.log("Cloudinary delete error:", error);
@@ -636,18 +689,13 @@ exports.deleteAwards = catchAsync(async (req, res, next) => {
     );
   }
 
-  // Delete from MongoDB
-  const index = user.awards.findIndex((awards) => awards._id.toString() === id);
-
-  if (index !== -1) {
-    user.awards.splice(index, 1);
-  }
+  award.deleteOne();
 
   await user.save();
 
   res.status(200).json({
     status: "success",
-    message: "award deleted successfully",
+    message: "Award deleted successfully",
     data: null,
   });
 });

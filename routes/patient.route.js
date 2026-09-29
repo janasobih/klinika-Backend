@@ -24,45 +24,44 @@ const upload = require("../middleware/uploads.middleware");
 router.get("/", authenticate, getAllPatients);
 
 // Get one patient
-router.get("/:slug", authenticate, getPatient);
+router.get("/:_id", authenticate, getPatient);
 
 // Create patient
 router.post("/", authenticate, checkPermission("patients"), createPatient);
 
 // Update patient
-router.patch(
-  "/:slug",
-  authenticate,
-  checkPermission("patients"),
-  updatePatient,
-);
+router.patch("/:_id", authenticate, checkPermission("patients"), updatePatient);
 
 // // Delete patient
 // router.delete("/:slug", authenticate, deletePatient);
 
 //addAttachment
 router.post(
-  "/:slug/attachments",
+  "/:_id/attachments",
   upload.single("file"),
   authenticate,
   addAttachment,
 );
 
 //getPatientAttachments
-router.get("/:slug/attachments", authenticate, getPatientAttachments);
+router.get("/:_id/attachments", authenticate, getPatientAttachments);
 
 //getAttachment
-router.get("/:slug/attachments/:id", authenticate, getAttachment);
+router.get("/:_id/attachments/:attachmentId", authenticate, getAttachment);
 
 //updateAttachment
 router.patch(
-  "/:slug/attachments/:id",
+  "/:_id/attachments/:attachmentId",
   upload.single("file"),
   authenticate,
   updateAttachment,
 );
 
 //deleteAttachment
-router.delete("/:slug/attachments/:id", authenticate, deleteAttachment);
+router.delete(
+  "/:_id/attachments/:attachmentId",
+  authenticate,
+  deleteAttachment,
+);
 
 module.exports = router;

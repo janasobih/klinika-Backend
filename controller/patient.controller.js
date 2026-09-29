@@ -142,9 +142,9 @@ exports.getAllPatients = catchAsync(async (req, res) => {
 });
 
 exports.getPatient = catchAsync(async (req, res, next) => {
-  const { slug } = req.params;
+  const { _id } = req.params;
 
-  const patient = await Patient.findOne({ slug });
+  const patient = await Patient.findOne({ _id });
 
   if (!patient) {
     return next(new AppError("Patient not found", 404));
@@ -152,7 +152,6 @@ exports.getPatient = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: "success",
-
     data: {
       patient,
     },
@@ -160,9 +159,9 @@ exports.getPatient = catchAsync(async (req, res, next) => {
 });
 
 exports.updatePatient = catchAsync(async (req, res, next) => {
-  const { slug } = req.params;
+  const { _id } = req.params;
 
-  const patient = await Patient.findOne({ slug });
+  const patient = await Patient.findOne({ _id });
 
   if (!patient) {
     return next(new AppError("Patient not found", 404));
@@ -295,19 +294,10 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     patient.insurance.endDate = insuranceEndDate;
   }
 
-  // Update slug if name changed
-  if (name !== undefined) {
-    patient.slug = slugify(name, {
-      lower: true,
-      strict: true,
-    });
-  }
-
   await patient.save();
 
   res.status(200).json({
     status: "success",
-
     data: {
       patient,
     },
@@ -315,9 +305,9 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
 });
 
 exports.deletePatient = catchAsync(async (req, res, next) => {
-  const { slug } = req.params;
+  const { id } = req.params;
 
-  const patient = await Patient.findOne({ slug });
+  const patient = await Patient.findOne({ id });
 
   if (!patient) {
     return next(new AppError("Patient not found", 404));
@@ -345,37 +335,37 @@ exports.deletePatient = catchAsync(async (req, res, next) => {
   res.status(204).send();
 });
 
+//////Attachment/////
 exports.addAttachment = catchAsync(async (req, res, next) => {
-  const { slug } = req.params;
+  const { _id } = req.params;
 
   const { fileName, fileType, description } = req.body;
 
-  // Check file
   if (!req.file) {
     return next(new AppError("Please upload a file", 400));
   }
 
-  // Find patient
+  // id = patient slug
   const patient = await Patient.findOne({
-    slug,
+    _id,
   });
 
   if (!patient) {
     return next(new AppError("Patient not found", 404));
   }
 
-  // Upload file to Cloudinary
-  const result = await uploadToCloudinary(req.file);
+  const result = await uploadToCloudinary(req.file, "klinika/patients");
 
-  // Create attachment
   const attachment = {
-    file: result.secure_url,
+    file: {
+      url: result.secure_url,
+      public_id: result.public_id,
+    },
     fileName,
     fileType,
     description,
   };
 
-  // Add attachment to patient
   patient.attachments.push(attachment);
 
   await patient.save();
@@ -391,10 +381,10 @@ exports.addAttachment = catchAsync(async (req, res, next) => {
 });
 
 exports.getPatientAttachments = catchAsync(async (req, res, next) => {
-  const { slug } = req.params;
+  const { id } = req.params;
 
   const patient = await Patient.findOne({
-    slug,
+    id,
   }).select("attachments");
 
   if (!patient) {
@@ -403,9 +393,7 @@ exports.getPatientAttachments = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: "success",
-
     results: patient.attachments.length,
-
     data: {
       attachments: patient.attachments,
     },
@@ -413,17 +401,17 @@ exports.getPatientAttachments = catchAsync(async (req, res, next) => {
 });
 
 exports.getAttachment = catchAsync(async (req, res, next) => {
-  const { slug, id } = req.params;
+  const { _id, attachmentId } = req.params;
 
   const patient = await Patient.findOne({
-    slug,
+    _id,
   });
 
   if (!patient) {
     return next(new AppError("Patient not found", 404));
   }
 
-  const attachment = patient.attachments.id(id);
+  const attachment = patient.attachments.id(attachmentId);
 
   if (!attachment) {
     return next(new AppError("Attachment not found", 404));
@@ -438,19 +426,19 @@ exports.getAttachment = catchAsync(async (req, res, next) => {
 });
 
 exports.updateAttachment = catchAsync(async (req, res, next) => {
-  const { slug, id } = req.params;
+  const { _id, attachmentId } = req.params;
 
   const { fileName, fileType, description } = req.body;
 
   const patient = await Patient.findOne({
-    slug,
+    _id,
   });
 
   if (!patient) {
     return next(new AppError("Patient not found", 404));
   }
 
-  const attachment = patient.attachments.id(id);
+  const attachment = patient.attachments.id(attachmentId);
 
   if (!attachment) {
     return next(new AppError("Attachment not found", 404));
@@ -468,6 +456,29 @@ exports.updateAttachment = catchAsync(async (req, res, next) => {
     attachment.description = description;
   }
 
+  // Remove existing file
+  if (req.body.removeFile === "true") {
+    if (attachment.file?.public_id) {
+      await cloudinary.uploader.destroy(attachment.file.public_id);
+    }
+
+    attachment.file = null;
+  }
+
+  // Replace existing file
+  else if (req.file) {
+    if (attachment.file?.public_id) {
+      await cloudinary.uploader.destroy(attachment.file.public_id);
+    }
+
+    const result = await uploadToCloudinary(req.file, "klinika/patients");
+
+    attachment.file = {
+      url: result.secure_url,
+      public_id: result.public_id,
+    };
+  }
+
   await patient.save();
 
   res.status(200).json({
@@ -479,25 +490,27 @@ exports.updateAttachment = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteAttachment = catchAsync(async (req, res, next) => {
-  const { slug, id } = req.params;
+  const { _id, attachmentId } = req.params;
 
   const patient = await Patient.findOne({
-    slug,
+    _id,
   });
 
   if (!patient) {
     return next(new AppError("Patient not found", 404));
   }
 
-  const attachment = patient.attachments.id(id);
+  const attachment = patient.attachments.id(attachmentId);
 
   if (!attachment) {
     return next(new AppError("Attachment not found", 404));
   }
 
-  // Delete from Cloudinary
+  // Delete file from Cloudinary
   try {
-    await cloudinary.uploader.destroy(attachment.id);
+    if (attachment.file?.public_id) {
+      await cloudinary.uploader.destroy(attachment.file.public_id);
+    }
   } catch (error) {
     console.log("Cloudinary delete error:", error);
 
@@ -509,8 +522,8 @@ exports.deleteAttachment = catchAsync(async (req, res, next) => {
     );
   }
 
-  // Delete from MongoDB
-  patient.attachments.pull(id);
+  // Delete attachment from MongoDB
+  patient.attachments.pull(attachmentId);
 
   await patient.save();
 

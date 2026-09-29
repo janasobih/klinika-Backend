@@ -41,7 +41,7 @@ router.patch("/me", upload.single("img"), authenticate, updateMe);
 router.get("/:id", authenticate, authorize("admin"), getAccount);
 
 router.patch(
-  "/:slug",
+  "/:id",
   upload.single("img"),
   authenticate,
   authorize("admin"),
@@ -50,39 +50,39 @@ router.patch(
 
 //////certificates////////
 router.post(
-  "/:slug/certificates",
-  upload.single("file"),
+  "/me/certificates",
   authenticate,
+  upload.single("file"),
   addCertificate,
 );
 
-router.get("/:slug/certificates", authenticate, getUserCertificate);
+router.get("/me/certificates", authenticate, getUserCertificate);
 
-router.get("/:slug/certificates/:id", authenticate, getCertificate);
+router.get("/me/certificates/:id", authenticate, getCertificate);
 
 router.patch(
-  "/:slug/certificates/:id",
-  upload.single("file"),
+  "/me/certificates/:id",
   authenticate,
+  upload.single("file"),
   updateCertificate,
 );
 
-router.delete("/:slug/certificates/:id", authenticate, deleteCertificate);
+router.delete("/me/certificates/:id", authenticate, deleteCertificate);
 
 //////Awards////////
-router.post("/:slug/awards", upload.single("file"), authenticate, addAwards);
+router.post("/me/awards", upload.single("file"), authenticate, addAwards);
 
-router.get("/:slug/awards", authenticate, getUserAwards);
+router.get("/me/awards", authenticate, getUserAwards);
 
-router.get("/:slug/awards/:id", authenticate, getAwards);
+router.get("/me/awards/:id", authenticate, getAwards);
 
 router.patch(
-  "/:slug/awards/:id",
+  "/me/awards/:id",
   upload.single("file"),
   authenticate,
   updateAwards,
 );
 
-router.delete("/:slug/awards/:id", authenticate, deleteAwards);
+router.delete("/me/awards/:id", authenticate, deleteAwards);
 
 module.exports = router;

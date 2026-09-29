@@ -8,12 +8,6 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    slug: {
-      type: String,
-      unique: true,
-      required: true,
-    },
-
     email: {
       type: String,
       required: true,
@@ -32,8 +26,8 @@ const userSchema = new mongoose.Schema(
     },
 
     img: {
-      type: String,
-      default: null,
+      url: String,
+      public_id: String,
     },
 
     role: {
@@ -85,6 +79,10 @@ const userSchema = new mongoose.Schema(
         file: {
           type: String,
         },
+
+        publicId: {
+          type: String,
+        },
       },
     ],
 
@@ -100,6 +98,10 @@ const userSchema = new mongoose.Schema(
         },
 
         file: {
+          type: String,
+        },
+
+        publicId: {
           type: String,
         },
       },
