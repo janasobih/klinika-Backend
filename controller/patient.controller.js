@@ -60,14 +60,10 @@ exports.createPatient = catchAsync(async (req, res, next) => {
     age--;
   }
 
-  // Check if patient already exists
-  const existingPatient = await Patient.findOne({ slug });
-
-  if (existingPatient) {
-    return next(new AppError("A patient with this name already exists", 400));
-  }
-
+  // ==========================
   // Create patient
+  // ==========================
+
   const patient = await Patient.create({
     personalInformation: {
       name,

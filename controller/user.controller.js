@@ -69,11 +69,6 @@ exports.createUser = catchAsync(async (req, res, next) => {
     workingHours,
 
     img,
-
-    slug: slugify(name, {
-      lower: true,
-      strict: true,
-    }),
   });
 
   const result = await User.findById(user._id).select("-password");
@@ -98,9 +93,7 @@ exports.getAllUsers = catchAsync(async (req, res) => {
 });
 
 exports.getMe = catchAsync(async (req, res, next) => {
-  const user = await User.findOne({
-    slug: req.user.slug,
-  }).select("-password");
+  const user = await User.findById(req.user.id).select("-password");
 
   if (!user) {
     return next(new AppError("User not found", 404));
