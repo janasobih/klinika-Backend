@@ -168,6 +168,7 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     allergies,
     chronicDiseases,
     medications,
+    previousSurgeries,
     familyMedicalHistory,
     medicalHistory,
 
@@ -243,6 +244,10 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
 
   if (medicalHistory !== undefined) {
     patient.medicalInformation.medicalHistory = medicalHistory;
+  }
+
+  if (previousSurgeries !== undefined) {
+    patient.medicalInformation.previousSurgeries = previousSurgeries;
   }
 
   // ==========================
