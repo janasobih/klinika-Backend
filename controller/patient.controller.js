@@ -172,9 +172,9 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     familyMedicalHistory,
     medicalHistory,
 
-    emergencyName,
-    emergencyPhone,
-    emergencyRelationship,
+    emergencyname,
+    emergencyphone,
+    emergencyrelationship,
 
     insuranceCompany,
     memberNumber,
@@ -255,15 +255,15 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
   // ==========================
 
   if (emergencyName !== undefined) {
-    patient.emergencyContact.name = emergencyName;
+    patient.emergencyContact.emergencyname = emergencyName;
   }
 
   if (emergencyPhone !== undefined) {
-    patient.emergencyContact.phone = emergencyPhone;
+    patient.emergencyContact.emergencyphone = emergencyPhone;
   }
 
   if (emergencyRelationship !== undefined) {
-    patient.emergencyContact.relationship = emergencyRelationship;
+    patient.emergencyContact.emergencyrelationship = emergencyRelationship;
   }
 
   // ==========================
