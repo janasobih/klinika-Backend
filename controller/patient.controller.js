@@ -25,9 +25,9 @@ exports.createPatient = catchAsync(async (req, res, next) => {
     familyMedicalHistory,
     medicalHistory,
 
-    emergencyname,
-    emergencyphone,
-    emergencyrelationship,
+    emergencyName,
+    emergencyPhone,
+    emergencyRelationship,
 
     company,
     memberNumber,
@@ -88,9 +88,9 @@ exports.createPatient = catchAsync(async (req, res, next) => {
     },
 
     emergencyContact: {
-      emergencyname,
-      emergencyphone,
-      emergencyrelationship,
+      emergencyName,
+      emergencyPhone,
+      emergencyRelationship,
     },
 
     insurance: {
@@ -172,9 +172,9 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     familyMedicalHistory,
     medicalHistory,
 
-    emergencyname,
-    emergencyphone,
-    emergencyrelationship,
+    emergencyName,
+    emergencyPhone,
+    emergencyRelationship,
 
     insuranceCompany,
     memberNumber,
@@ -255,15 +255,15 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
   // ==========================
 
   if (emergencyName !== undefined) {
-    patient.emergencyContact.emergencyname = emergencyName;
+    patient.emergencyContact.emergencyName = emergencyName;
   }
 
   if (emergencyPhone !== undefined) {
-    patient.emergencyContact.emergencyphone = emergencyPhone;
+    patient.emergencyContact.emergencyPhone = emergencyPhone;
   }
 
   if (emergencyRelationship !== undefined) {
-    patient.emergencyContact.emergencyrelationship = emergencyRelationship;
+    patient.emergencyContact.emergencyRelationship = emergencyRelationship;
   }
 
   // ==========================
