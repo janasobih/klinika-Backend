@@ -100,17 +100,17 @@ const patientSchema = new mongoose.Schema(
 
     // emergencyContact التواصل الطارئ
     emergencyContact: {
-      emergencyname: {
+      emergencyName: {
         type: String,
         trim: true,
       },
 
-      emergencyphone: {
+      emergencyPhone: {
         type: String,
         trim: true,
       },
 
-      emergencyrelationship: {
+      emergencyRelationship: {
         type: String,
         trim: true,
       },
