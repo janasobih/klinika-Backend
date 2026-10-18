@@ -6,6 +6,8 @@ const AppError = require("../utilite/appError.utilite");
 const cloudinary = require("../config/cloudinary.config");
 const uploadToCloudinary = require("../utilite/uploadToCloudinary.utilite");
 
+const createNotification = require("../notification/notifivation.utilite");
+
 exports.createPatient = catchAsync(async (req, res, next) => {
   const {
     name,
@@ -101,6 +103,14 @@ exports.createPatient = catchAsync(async (req, res, next) => {
     },
 
     attachments: [],
+  });
+
+  await createNotification({
+    type: "Patient",
+    title: "Patient created",
+    message: "A patient has been created.",
+    relatedId: patient._id,
+    relatedModel: "Patient",
   });
 
   res.status(201).json({
@@ -288,43 +298,20 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
 
   await patient.save();
 
+  await createNotification({
+    type: "Patient",
+    title: "Patient updated",
+    message: "patient has been updated.",
+    relatedId: patient._id,
+    relatedModel: "Patient",
+  });
+
   res.status(200).json({
     status: "success",
     data: {
       patient,
     },
   });
-});
-
-exports.deletePatient = catchAsync(async (req, res, next) => {
-  const { id } = req.params;
-
-  const patient = await Patient.findOne({ id });
-
-  if (!patient) {
-    return next(new AppError("Patient not found", 404));
-  }
-
-  // Delete patient's attachments from Cloudinary
-  if (patient.attachments?.length > 0) {
-    await Promise.all(
-      patient.attachments.map(async (attachment) => {
-        try {
-          await cloudinary.uploader.destroy(attachment.publicId, {
-            resource_type: "auto",
-          });
-        } catch (error) {
-          console.error("Cloudinary delete error:", error.message);
-        }
-      }),
-    );
-  }
-
-  await Patient.deleteOne({
-    _id: patient._id,
-  });
-
-  res.status(204).send();
 });
 
 //////Attachment/////
@@ -363,6 +350,14 @@ exports.addAttachment = catchAsync(async (req, res, next) => {
   await patient.save();
 
   const newAttachment = patient.attachments[patient.attachments.length - 1];
+
+  await createNotification({
+    type: "Patient",
+    title: "Patient updated",
+    message: "patient has been updated.",
+    relatedId: patient._id,
+    relatedModel: "Patient",
+  });
 
   res.status(201).json({
     status: "success",
@@ -473,6 +468,14 @@ exports.updateAttachment = catchAsync(async (req, res, next) => {
 
   await patient.save();
 
+  await createNotification({
+    type: "Patient",
+    title: "Patient updated",
+    message: "patient has been updated.",
+    relatedId: patient._id,
+    relatedModel: "Patient",
+  });
+
   res.status(200).json({
     status: "success",
     data: {
@@ -518,6 +521,14 @@ exports.deleteAttachment = catchAsync(async (req, res, next) => {
   patient.attachments.pull(attachmentId);
 
   await patient.save();
+
+  await createNotification({
+    type: "Patient",
+    title: "Patient updated",
+    message: "patient has been updated.",
+    relatedId: patient._id,
+    relatedModel: "Patient",
+  });
 
   res.status(200).json({
     status: "success",

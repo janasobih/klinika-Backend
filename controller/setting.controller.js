@@ -5,6 +5,8 @@ const catchAsync = require("../utilite/catchAsync.utilte");
 const cloudinary = require("../config/cloudinary.config");
 const uploadToCloudinary = require("../utilite/uploadToCloudinary.utilite");
 
+const createNotification = require("../notification/notifivation.utilite");
+
 exports.getSettings = catchAsync(async (req, res, next) => {
   let settings = await Settings.findOne();
 
@@ -178,6 +180,14 @@ exports.updateSettings = catchAsync(async (req, res, next) => {
   }
 
   await settings.save();
+
+  await createNotification({
+    type: "Settings",
+    title: "Settings updated",
+    message: "A settings has been updated.",
+    relatedId: settings._id,
+    relatedModel: "Settings",
+  });
 
   res.status(200).json({
     status: "success",

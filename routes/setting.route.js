@@ -11,7 +11,7 @@ const { authorize } = require("../middleware/role.middleware");
 
 const upload = require("../middleware/uploads.middleware");
 
-router.get("/", authenticate, authorize("admin"), getSettings);
+router.get("/", authenticate, getSettings);
 
 router.put(
   "/",

@@ -51,11 +51,6 @@ const invoiceSchema = new mongoose.Schema(
       required: true,
     },
 
-    visit: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Visit",
-    },
-
     invoiceDate: {
       type: Date,
       default: Date.now,

@@ -4,6 +4,12 @@ dotenv.config();
 const express = require("express");
 const app = express();
 
+const http = require("http");
+const { initializeSocket } = require("./notification/socket.io.utilite");
+
+const server = http.createServer(app);
+initializeSocket(server);
+
 const { connectDB } = require("./config/DB.config");
 
 app.use(express.json());
@@ -31,6 +37,8 @@ app.use("/api/v1/appointment", require("./routes/appointment.route"));
 app.use("/api/v1/visit", require("./routes/visit.route"));
 app.use("/api/v1/invoice", require("./routes/invoice.route"));
 app.use("/api/v1/settings", require("./routes/setting.route"));
+app.use("/api/v1/reports", require("./routes/reports.route"));
+app.use("/api/v1/notification", require("./notification/notification.route"));
 
 const errorHandler = require("./middleware/errorHandler.middleware");
 const AppError = require("./utilite/appError.utilite");
@@ -42,7 +50,7 @@ app.use((req, res, next) => {
 app.use(errorHandler);
 
 if (process.env.ENVIROMENT !== "production") {
-  app.listen(process.env.PORT, () => {
+  server.listen(process.env.PORT, () => {
     console.log(`Server running on port ${process.env.PORT}`);
   });
 }

@@ -3,6 +3,8 @@ const Invoice = require("../model/invoice.model");
 const catchAsync = require("../utilite/catchAsync.utilte");
 const AppError = require("../utilite/appError.utilite");
 
+const createNotification = require("../notification/notifivation.utilite");
+
 // Generate invoice number
 const generateInvoiceNumber = async () => {
   const lastInvoice = await Invoice.findOne().sort({ createdAt: -1 });
@@ -102,7 +104,6 @@ exports.createInvoice = catchAsync(async (req, res, next) => {
   const {
     patient,
     doctor,
-    visit,
     invoiceDate,
     services,
     paid = 0,
@@ -134,7 +135,6 @@ exports.createInvoice = catchAsync(async (req, res, next) => {
     invoiceNumber,
     patient,
     doctor,
-    visit,
     invoiceDate,
     services: calculatedInvoice.services,
     subtotal: calculatedInvoice.subtotal,
@@ -146,6 +146,14 @@ exports.createInvoice = catchAsync(async (req, res, next) => {
     status: calculatedInvoice.status,
     notes,
     TermsAndConditions,
+  });
+
+  await createNotification({
+    type: "invoice",
+    title: "Invoice created",
+    message: "An invoice has been created.",
+    relatedId: invoice._id,
+    relatedModel: "Invoice",
   });
 
   res.status(201).json({
@@ -253,6 +261,14 @@ exports.updateInvoice = catchAsync(async (req, res, next) => {
   invoice.status = calculatedInvoice.status;
 
   await invoice.save();
+
+  await createNotification({
+    type: "invoice",
+    title: "Invoice updated",
+    message: "An invoice has been updated.",
+    relatedId: invoice._id,
+    relatedModel: "Invoice",
+  });
 
   res.status(200).json({
     status: "success",

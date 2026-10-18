@@ -32,10 +32,7 @@ router.post("/", authenticate, checkPermission("patients"), createPatient);
 // Update patient
 router.patch("/:_id", authenticate, checkPermission("patients"), updatePatient);
 
-// // Delete patient
-// router.delete("/:slug", authenticate, deletePatient);
-
-//addAttachment
+//////////addAttachment////////
 router.post(
   "/:_id/attachments",
   upload.single("file"),

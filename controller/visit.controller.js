@@ -115,17 +115,3 @@ exports.updateVisit = catchAsync(async (req, res, next) => {
     data: visit,
   });
 });
-
-// Delete Visit
-// exports.deleteVisit = catchAsync(async (req, res, next) => {
-//   const visit = await Visit.findByIdAndDelete(req.params.id);
-
-//   if (!visit) {
-//     return next(new AppError("Visit not found", 404));
-//   }
-
-//   res.status(204).json({
-//     status: "success",
-//     message: "Visit deleted successfully",
-//   });
-// });

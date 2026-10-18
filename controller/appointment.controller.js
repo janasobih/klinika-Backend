@@ -4,6 +4,8 @@ const Patient = require("../model/patient.model");
 const catchAsync = require("../utilite/catchAsync.utilte");
 const AppError = require("../utilite/appError.utilite");
 
+const createNotification = require("../notification/notifivation.utilite");
+
 exports.createAppointment = catchAsync(async (req, res, next) => {
   const {
     patientType,
@@ -207,6 +209,7 @@ exports.createAppointment = catchAsync(async (req, res, next) => {
   // Create Appointment
   // ==========================
 
+  // Create Appointment
   const appointment = await Appointment.create({
     patientType,
     patient: patientId,
@@ -218,15 +221,19 @@ exports.createAppointment = catchAsync(async (req, res, next) => {
     notes,
   });
 
-  await appointment.populate([
-    {
-      path: "patient",
-    },
-    {
-      path: "doctor",
-    },
-  ]);
+  await appointment.populate([{ path: "patient" }, { path: "doctor" }]);
 
+  // Create notification for the doctor
+  await createNotification({
+    recipient: appointment.doctor._id,
+    type: "appointment",
+    title: "New Appointment",
+    message: "You have a new appointment.",
+    relatedId: appointment._id,
+    relatedModel: "Appointment",
+  });
+
+  // Send response after notification creation
   res.status(201).json({
     status: "success",
     message: "Appointment created successfully",
@@ -436,6 +443,14 @@ exports.updateAppointment = catchAsync(async (req, res, next) => {
     },
   ]);
 
+  await createNotification({
+    type: "appointment",
+    title: "Appointment Updated",
+    message: "An appointment has been updated.",
+    relatedId: appointment._id,
+    relatedModel: "Appointment",
+  });
+
   res.status(200).json({
     status: "success",
     message: "Appointment updated successfully",
@@ -449,6 +464,14 @@ exports.deleteAppointment = catchAsync(async (req, res, next) => {
   if (!appointment) {
     return next(new AppError("Appointment not found", 404));
   }
+
+  await createNotification({
+    type: "appointment",
+    title: "Appointment Deleted",
+    message: "An appointment has been deleted.",
+    relatedId: appointment._id,
+    relatedModel: "Appointment",
+  });
 
   res.status(204).json({
     status: "success",
